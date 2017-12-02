@@ -1,7 +1,7 @@
 First commit.
 
-# Chham - importation de la table dans R en ligne de commande 
-movie_metadata <- read.csv("C://TPgroupe//movie_metadata.csv", header=T, sep=",")
+# Chham - importation de la table dans R en ligne de commande  - il n'y a plus de probleme avec les caracteres spéciaux
+movie_metadata <- read.csv("C://TPgroupe//movie_metadata.csv", header=T, sep=",", dec=".", encoding="UTF-8")
 
 
 # Chham - suppression des doublons 
