@@ -1,1 +1,8 @@
 First commit.
+
+# Chham - importation de la table dans R en ligne de commande 
+movie_metadata <- read.csv("C://TPgroupe//movie_metadata.csv", header=T, sep=",")
+
+
+# Chham - suppression des doublons 
+movie_metadata_moviename_nodoublon <- unique(movie_metadata)
