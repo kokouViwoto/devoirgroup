@@ -70,6 +70,165 @@ movie_metadata <- creation_colonne_rentabilite(movie_metadata)
 # Trions par rentabilite
 movie_metadata <- movie_metadata[order(-movie_metadata$rentabilite),]
 
+meilleurFilmParRentabilite <- head(movie_metadata,1);
+
+# Decouvertes
+#1- Est ce que le film le plus liker est le plus rentable ?
+# Creons une colonne likes = movie_facebook_likes + director_facebook_likes + actor_3_facebook_likes + actor_2_facebook_likes + actor1_facebook_likes
+getValueSafely <- function(value){
+  if(is.null(value) || is.na(value)){
+    return(0);
+  }
+  
+  return(value)
+}
+
+creation_colonne_likes <- function(data){
+  for (i in 1:nrow(data)){
+    movie_facebook_likes = getValueSafely(data$movie_facebook_likes[i]);
+    director_facebook_likes = getValueSafely(data$director_facebook_likes[i]);
+    actor_3_facebook_likes = getValueSafely(data$actor_3_facebook_likes[i]);
+    actor_2_facebook_likes = getValueSafely(data$actor_2_facebook_likes[i]);
+    actor_1_facebook_likes = getValueSafely(data$actor1_facebook_likes[i]);
+    
+    data$likes[i] <- movie_facebook_likes + director_facebook_likes + actor_3_facebook_likes + actor_2_facebook_likes + actor_1_facebook_likes;
+  }
+  return(data)
+}
+
+movie_metadata <- creation_colonne_likes(movie_metadata);
+
+#2 Quelle est la proportion du facebook like de l'acteur principal par rapport au facebook like total du film ?
+creation_ratioLike <- function(data){
+  for (i in 1:nrow(data)){
+    actor_1_facebook_likes = getValueSafely(data$actor_1_facebook_likes[i]);
+    if (getValueSafely(data$likes[i]) != 0 && actor_1_facebook_likes != 0){
+      data$ratioLike[i] <- (actor_1_facebook_likes * 100 )/data$likes[i]
+    }
+    else {
+      data$ratioLike[i] <- 0
+    }
+  }
+  return(data)
+}
+movie_metadata <- creation_ratioLike(movie_metadata);
+
+#3 Quelle est la liste complete de categories sans doublons dans le dataset
+
+## Enlever les blancs en debut en fin de chaines de caractères
+trim <- function (x) {
+  gsub("^\\s+|\\s+$", "", x)
+}
+
+splitCategoriesLine <- function(line){
+  lineWithoutSpace = trim(line);
+  if(length(lineWithoutSpace) == 0){
+    return ("EMPTY");
+  }
+  return (unlist(strsplit(lineWithoutSpace, "[|]")))
+}
+
+getAllUniqueGenres <- function(data){
+  
+  allCategories <- c()
+  for (i in 1:length(data)){
+    newCategories <- splitCategoriesLine(data[i]);
+    if (newCategories[1] != "EMPTY"){
+      for(j in 1:length(newCategories)){
+         allCategories <- c(allCategories, c(newCategories[[j]]))
+      }
+    }
+  }
+  return(unique(allCategories))
+}
+
+allUniqueGenres <- getAllUniqueGenres(movie_metadata$genres);
+
+#4 Quels sont les genres de film qui a plus de facebook likes?
+genresByLikesDf = data.frame("Genres"=allUniqueGenres)
+genresByLikesDf$count <- 0
+
+getGenresByLikes <- function(data){
+
+  for (i in 1:nrow(data)){
+    categories <- splitCategoriesLine(data$genres[i]);
+    if (categories[1] != "EMPTY"){
+      for(j in 1:length(categories)){
+        genresByLikesDf[which(genresByLikesDf$Genres==categories[[j]]),]$count <- genresByLikesDf[which(genresByLikesDf$Genres==categories[[j]]),]$count + data$likes[i]
+      }
+    }
+  }
+  return(genresByLikesDf)
+}
+
+genresByLikesDf <-getGenresByLikes(movie_metadata)
+
+genresByLikesDf <- genresByLikesDf[order(-genresByLikesDf$count),]
+
+#5 Quel est l'acteur qui apparait dans plus de films?
+
+getActorNameWithoutSpace <- function(line){
+  if(is.na(line)){
+    return ("EMPTY");
+  }
+  
+  lineWithoutSpace = trim(line);
+  if(length(lineWithoutSpace) == 0){
+    return ("EMPTY");
+  }
+  
+  return (lineWithoutSpace)
+}
+
+getAllActors <- function(data){
+  
+  allActors <- c()
+  for (i in 1:nrow(data)){
+    actor1 <- getActorNameWithoutSpace(data$actor_1_name[i]);
+    actor2 <- getActorNameWithoutSpace(data$actor_2_name[i]);
+    actor3 <- getActorNameWithoutSpace(data$actor_3_name[i]);
+    if (actor1 != "EMPTY" && length(actor1) > 0){
+      allActors <- c(allActors, c(actor1))
+    }
+    if (actor2 != "EMPTY" && length(actor2)){
+      allActors <- c(allActors, c(actor2))
+    }
+    if (actor3 != "EMPTY" && length(actor3)){
+      allActors <- c(allActors, c(actor3))
+    }
+  }
+  return(sort(unique(allActors)))
+}
+
+allUniqueActors <-getAllActors(movie_metadata)
+
+actorsByPresenceCountDf = data.frame("Actors"=allUniqueActors)
+actorsByPresenceCountDf$presence <- 0
+
+getActorsByPresenceCount <- function(data){
+  
+  for (i in 1:nrow(data)){
+    actor1 <- getActorNameWithoutSpace(data$actor_1_name[i]);
+    actor2 <- getActorNameWithoutSpace(data$actor_2_name[i]);
+    actor3 <- getActorNameWithoutSpace(data$actor_3_name[i]);
+    
+    if (actor1 != "EMPTY"){
+      actorsByPresenceCountDf[which(actorsByPresenceCountDf$Actors==actor1),]$presence <- actorsByPresenceCountDf[which(actorsByPresenceCountDf$Actors==actor1),]$presence + 1
+    }
+    if (actor2 != "EMPTY"){
+      actorsByPresenceCountDf[which(actorsByPresenceCountDf$Actors==actor2),]$presence <- actorsByPresenceCountDf[which(actorsByPresenceCountDf$Actors==actor2),]$presence + 1
+    }
+    if (actor3 != "EMPTY"){
+      actorsByPresenceCountDf[which(actorsByPresenceCountDf$Actors==actor3),]$presence <- actorsByPresenceCountDf[which(actorsByPresenceCountDf$Actors==actor3),]$presence + 1
+    }
+    
+  }
+  return(actorsByPresenceCountDf)
+}
+
+actorsByPresenceCountDf <- getActorsByPresenceCount(movie_metadata)
+
+actorsByPresenceCountDf <- actorsByPresenceCountDf[order(-actorsByPresenceCountDf$presence),]
 
 
 
